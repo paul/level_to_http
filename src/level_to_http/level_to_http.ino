@@ -48,6 +48,8 @@ void setup() {
   }
   Serial.println("DHCP Complete");
 
+  debugMemory();
+
   Serial.print("Setting current time... ");
   EthernetClient c;
   HttpClient http(c);
@@ -60,20 +62,18 @@ void setup() {
     if (err == 200) {
       err = http.skipResponseHeaders();
       if (err >= 0) {
-        int bodyLen = http.contentLength();
         unsigned long timeoutStart = millis();
-        char c;
         // Read while we haven't timed out or reached the end
         while ( (http.connected() || http.available()) && ((millis() - timeoutStart) < networkTimeout) ) {
           if (http.available()) {
-            timeStr += http.read();
-            bodyLen--;
+            timeStr += (char)http.read();
             timeoutStart = millis();
           } else { // wait for more data
             delay(networkDelay);
           }
         }
 
+        Serial.println(timeStr);
         setTime(timeStr.toInt());
         Serial.println(now());
       } else {
@@ -89,6 +89,7 @@ void setup() {
   }
 
   http.stop();
+  debugMemory();
 }
 
 void loop() {
@@ -117,5 +118,24 @@ void loop() {
     Serial.println("error opening file");
   }
 
+  debugMemory();
   delay(accelUpdateInterval*1000);
+}
+
+void debugMemory() {
+  Serial.print("Free: ");
+  Serial.println(memoryFree());
+}
+
+// variables created by the build process when compiling the sketch
+extern int __bss_end;
+extern void *__brkval;
+// function to return the amount of free RAM
+int memoryFree() {
+  int freeValue;
+  if((int)__brkval == 0)
+    freeValue = ((int)&freeValue) - ((int)&__bss_end);
+  else
+    freeValue = ((int)&freeValue) - ((int)__brkval);
+  return freeValue;
 }
